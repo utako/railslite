@@ -6,11 +6,15 @@ class Params
   # 2. post body
   # 3. route params
   def initialize(req, route_params = {})
-    @params = {}
+    @params = route_params
     query_params = parse_www_encoded_form(req.query_string)
     post_body = parse_www_encoded_form(req.body)
     @params = @params.merge(query_params)
     @params = @params.merge(post_body)
+    @params = @params.merge(route_params)
+    @params = deep_merge_all_the_hashes([@params])
+    @permitted_keys = []
+    @required_key = nil
   end
 
   def [](key)
@@ -18,12 +22,17 @@ class Params
   end
 
   def permit(*keys)
+    @permitted_keys +=  keys
   end
 
   def require(key)
+    raise AttributeNotFoundError if @params[key].nil?
+    @params[key.to_sym]
   end
 
   def permitted?(key)
+    # raise AttributeNotFoundError unless @permitted_keys.include?(key)
+    @permitted_keys.include?(key)
   end
 
   def to_s
@@ -55,9 +64,9 @@ class Params
   
   def nest(keys, value)
     if keys.length == 1
-      { keys.pop.to_sym => value}
+      { keys.pop => value}
     else
-      { keys[0].to_sym => nest(keys[1..-1], value) }
+      { keys[0] => nest(keys[1..-1], value) }
     end
   end
   

@@ -6,17 +6,28 @@ class Route
     @http_method = http_method
     @controller_class = controller_class
     @action_name = action_name
+    @captures = {}
   end
 
-  # checks if pattern matches path and method matches request method
   def matches?(req)
-    !(@pattern =~ req.path).nil? && @http_method == req.request_method.downcase.to_sym
+    return false if @http_method != req.request_method
+    if data = @pattern.match(req.path)
+      if data.length > 1
+        data.names.each do |name|
+          @captures[name] = data[name]
+        end
+      end
+    else 
+      return false
+    end
+    true    
   end
 
   # use pattern to pull out route params (save for later?)
   # instantiate controller and call controller action
   def run(req, res)
-    controller = @controller_class.new(req, res, {})
+    self.matches?(req)
+    controller = @controller_class.new(req, res, @captures)
     controller.invoke_action(@action_name)
   end
 end

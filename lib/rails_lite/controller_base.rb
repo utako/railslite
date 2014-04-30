@@ -18,6 +18,7 @@ class ControllerBase
   # set the responses content type to the given type
   # later raise an error if the developer tries to double render
   def render_content(content, type)
+    raise "already rendered" if already_built_response?
     @res.body = content
     @res.content_type = type
     @already_built_response = true
@@ -31,6 +32,7 @@ class ControllerBase
 
   # set the response status code and header
   def redirect_to(url)
+    raise "already redirected" if already_built_response?
     @res.status = 302
     @res["Location"] = url
     @already_built_response = true
@@ -45,7 +47,6 @@ class ControllerBase
     compiled_template = ERB.new(template)
     content = compiled_template.result(binding)
     type = 'text/html'
-    @already_built_response = true
     render_content(content, type)
   end
 
