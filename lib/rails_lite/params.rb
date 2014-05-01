@@ -89,4 +89,5 @@ class Params
   def parse_key(key)
     key.scan(/\w+/)
   end
+
 end

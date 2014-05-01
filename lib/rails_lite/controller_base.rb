@@ -3,8 +3,27 @@ require 'active_support/inflector'
 require_relative 'params'
 require_relative 'session'
 
+module ProtectFromForgery
+  
+  def protect_from_forgery
+    @protect_from_forgery = true
+  end
+  
+  def csrf_token_verified?
+    params[:csrf_token] == session[:csrf_token]
+  end
+  
+  def form_authenticity_token
+    session[:csrf_token] ||= SecureRandom.hex
+  end  
+
+end
+
 
 class ControllerBase
+  
+  include ProtectFromForgery
+  
   attr_reader :params, :req, :res
 
   # setup the controller
@@ -12,6 +31,7 @@ class ControllerBase
     @params = Params.new(req, route_params)
     @req = req
     @res = res
+    @protect_from_forgery = false
   end
 
   # populate the response with content
@@ -23,6 +43,10 @@ class ControllerBase
     @res.content_type = type
     @already_built_response = true
     session.store_session(@res)
+  end
+  
+  def flash
+    session[:flash]
   end
 
   # helper method to alias @already_built_response
@@ -54,10 +78,21 @@ class ControllerBase
   def session
     @session ||= Session.new(req) 
   end
-
+  
+  def reset_session!
+    @session = Session.new(req)
+  end
+  
+  
   # use this with the router to call action_name (:index, :show, :create...)
   def invoke_action(action_name)
-    self.send(action_name)
-    # render(sometemplatename) unless already_built_response?
+    unprotected_actions = [:index, :show, :edit, :new]
+    if (unprotected_actions.include?(action_name) || @protect_from_forgery == false ) 
+       || csrf_token_verified?
+      self.send(action_name)
+    else
+      reset_session!
+    end
   end
+  
 end
