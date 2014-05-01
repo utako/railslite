@@ -5,7 +5,12 @@ require_relative 'session'
 
 module ProtectFromForgery
   
-  def protect_from_forgery
+  def protect_from_forgery(options = {})
+    if options == { with: :exception }
+      @protection_action = :raise_exception
+    else      
+      @protection_action = :reset_session!
+    end
     @protect_from_forgery = true
   end
   
@@ -32,6 +37,7 @@ class ControllerBase
     @req = req
     @res = res
     @protect_from_forgery = false
+    @protection_action = nil
   end
 
   # populate the response with content
@@ -83,15 +89,19 @@ class ControllerBase
     @session = Session.new(req)
   end
   
+  def raise_exception
+    raise "CSRF Token Error"
+  end
   
   # use this with the router to call action_name (:index, :show, :create...)
   def invoke_action(action_name)
     unprotected_actions = [:index, :show, :edit, :new]
-    if (unprotected_actions.include?(action_name) || @protect_from_forgery == false ) 
-       || csrf_token_verified?
+    if (unprotected_actions.include?(action_name) || 
+        @protect_from_forgery == false ) || 
+           csrf_token_verified?
       self.send(action_name)
     else
-      reset_session!
+      self.send(@protection_action)
     end
   end
   
